@@ -58,6 +58,7 @@ def main(args):
         weight_decay=args.weight_decay,
         load_best_model_at_end=True,
         metric_for_best_model="accuracy",
+        save_strategy="epoch"
     )
 
     trainer = Trainer(
