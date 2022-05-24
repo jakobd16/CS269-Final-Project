@@ -321,8 +321,8 @@ def main(args):
     with open('statistics.txt', 'w') as outputStatsFile:
         outputStatsFile.write("Token Error Rate: %.4f (over %d tokens)\n" % (sum(token_errors) / len(token_errors), len(token_errors)))
         outputStatsFile.write("Positive:Negative sample ratio of " + str(labelCounts[1]) + ":" + str(labelCounts[0]) +"\n")
-        outputStatsFile.write("Clean Accuracy: {acc:.2f}\n".format(acc=(correctlyClassified/args.num_samples)))
-        outputStatsFile.write("Adversarial Accuracy: {advAcc:.2f}\n".format(advAcc=(advCorrectlyClassified/args.num_samples)))
+        outputStatsFile.write("Clean Accuracy: {acc:.4f}\n".format(acc=(correctlyClassified/args.num_samples)))
+        outputStatsFile.write("Adversarial Accuracy: {advAcc:.4f}\n".format(advAcc=(advCorrectlyClassified/args.num_samples)))
     torch.save({
         'adv_log_coeffs': adv_log_coeffs, 
         'adv_logits': torch.cat(adv_logits, 0), # size N x C
