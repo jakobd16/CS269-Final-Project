@@ -127,11 +127,14 @@ def main(args):
     labelCounts = None
     correctlyClassified = None
     advCorrectlyClassified = None
+    currentIters = None
     if args.dataset == 'imdb':
         labelCounts = [0,0]
         correctlyClassified = 0
         advCorrectlyClassified = 0
+        currentIters = 0
     for idx in range(args.start_index, end_index): 
+        currentIters += 1
         input_ids = encoded_dataset[testset_key]['input_ids'][idx]
         if args.model == 'gpt2':
             token_type_ids = None
@@ -321,8 +324,8 @@ def main(args):
             with open('statistics.txt', 'w') as outputStatsFile:
                 outputStatsFile.write("Token Error Rate: %.4f (over %d tokens)\n" % (sum(token_errors) / len(token_errors), len(token_errors)))
                 outputStatsFile.write("Positive:Negative sample ratio of " + str(labelCounts[1]) + ":" + str(labelCounts[0]) +"\n")
-                outputStatsFile.write("Clean Accuracy: {acc:.4f}\n".format(acc=(correctlyClassified/args.num_samples)))
-                outputStatsFile.write("Adversarial Accuracy: {advAcc:.4f}\n".format(advAcc=(advCorrectlyClassified/args.num_samples)))
+                outputStatsFile.write("Clean Accuracy: {acc:.4f}\n".format(acc=(correctlyClassified/currentIters)))
+                outputStatsFile.write("Adversarial Accuracy: {advAcc:.4f}\n".format(advAcc=(advCorrectlyClassified/currentIters)))
             
     torch.save({
         'adv_log_coeffs': adv_log_coeffs, 
