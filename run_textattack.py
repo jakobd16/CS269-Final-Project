@@ -49,6 +49,7 @@ from textattack.attack_results import SuccessfulAttackResult, FailedAttackResult
 from src.utils import bool_flag
 from src.attacks import build_baegarg2019, build_attack, USE
 from src.dataset import load_data
+import cProfile, pstats, io
 
 
 def get_parser():
@@ -76,7 +77,7 @@ def get_parser():
     return parser
 
 
-
+@profile
 def main(params):
     # Loading data
     dataset, num_labels = load_data(params)
@@ -190,6 +191,26 @@ def main(params):
     if params.target_dir is not None:
         f.close()
 
+
+
+def profile(fnc):
+    
+    """A decorator that uses cProfile to profile a function"""
+    
+    def inner(*args, **kwargs):
+        
+        pr = cProfile.Profile()
+        pr.enable()
+        retval = fnc(*args, **kwargs)
+        pr.disable()
+        s = io.StringIO()
+        sortby = 'cumulative'
+        ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
+        ps.print_stats()
+        print(s.getvalue())
+        return retval
+
+    return inner
 
 if __name__ == "__main__":
     print("Using text attack from ", textattack.__file__)

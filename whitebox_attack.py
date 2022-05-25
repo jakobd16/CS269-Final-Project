@@ -19,18 +19,18 @@ transformers.logging.set_verbosity(transformers.logging.ERROR)
 import time 
 import torch
 import torch.nn.functional as F
-
+import cProfile, pstats, io
 from src.dataset import load_data
 from src.utils import bool_flag, get_output_file, print_args, load_gpt2_from_dict
 
-
+@profile
 def wer(x, y):
     x = " ".join(["%d" % i for i in x])
     y = " ".join(["%d" % i for i in y])
 
     return jiwer.wer(x, y)
 
-
+@profile
 def bert_score(refs, cands, weights=None):
     refs_norm = refs / refs.norm(2, -1).unsqueeze(-1)
     if weights is not None:
@@ -44,14 +44,14 @@ def bert_score(refs, cands, weights=None):
     R = cosines.max(-1)[0].sum(1)
     return R
 
-
+@profile
 def log_perplexity(logits, coeffs):
     shift_logits = logits[:, :-1, :].contiguous()
     shift_coeffs = coeffs[:, 1:, :].contiguous()
     shift_logits = shift_logits[:, :, :shift_coeffs.size(2)]
     return -(shift_coeffs * F.log_softmax(shift_logits, dim=-1)).sum(-1).mean()
 
-
+@profile
 def main(args):
     pretrained = args.model.startswith('textattack')
     output_file = get_output_file(args, args.model, args.start_index, args.start_index + args.num_samples)
@@ -311,6 +311,26 @@ def main(args):
         'times': times,
         'token_error': token_errors,
     }, output_file)
+
+def profile(fnc):
+    
+    """A decorator that uses cProfile to profile a function"""
+    
+    def inner(*args, **kwargs):
+        
+        pr = cProfile.Profile()
+        pr.enable()
+        retval = fnc(*args, **kwargs)
+        pr.disable()
+        s = io.StringIO()
+        sortby = 'cumulative'
+        ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
+        ps.print_stats()
+        print(s.getvalue())
+        return retval
+
+    return inner
+
 
 
 if __name__ == "__main__":
