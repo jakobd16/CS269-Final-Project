@@ -19,6 +19,9 @@ transformers.logging.set_verbosity(transformers.logging.ERROR)
 import time 
 import torch
 import torch.nn.functional as F
+import nltk
+import string
+from nltk.corpus import wordnet
 
 from src.dataset import load_data
 from src.utils import bool_flag, get_output_file, print_args, load_gpt2_from_dict
@@ -60,6 +63,10 @@ def main(args):
     if os.path.exists(output_file):
         print('Skipping batch as it has already been completed.')
         exit()
+
+    # Download wordnet corpora
+    nltk.download('wordnet')
+    nltk.download('omw-1.4')
     
     # Load dataset
     dataset, num_labels = load_data(args)
@@ -148,7 +155,39 @@ def main(args):
         print('LABEL')
         print(label)
         print('TEXT')
-        print(tokenizer.decode(input_ids))
+
+        # here, we begin getting the synonyms of input sentence
+        text = tokenizer.decode(input_ids)
+        tokenText = text.split(' ')
+        print(tokenText)
+        lowerTokens = [targetToken.lower() for targetToken in tokenText]
+        punctTable = str.maketrans('', '', string.punctuation)
+        cleanedTokens = [loweredToken.translate(punctTable) for loweredToken in lowerTokens]
+        totalSynList = []
+        encounteredWords = []
+        for word in cleanedTokens:
+            if word == None:
+                continue
+            synonyms = wordnet.synsets(word)
+            synonymList = None
+            bigramAdjustedList = None
+            if synonyms:
+                synonymList = synonyms[0].lemma_names()
+                bigramAdjustedList = [synWord.replace('_', ' ') for synWord in synonymList]
+                if word not in encounteredWords:
+                    for bigram in bigramAdjustedList:
+                        totalSynList.append(bigram)
+                encounteredWords.append(word)
+
+        # all done, total list of all synonyms available at this point
+        # located in variable totalSynList in Python List form
+        # e.g. print(totalSynList) will show all synonyms
+
+        # ideas for improvement: add POS tagging to get right word sense
+        # and select sense with most synonyms
+
+        print(totalSynList[0:6])
+
         print('LOGITS')
         print(clean_logit)
         
