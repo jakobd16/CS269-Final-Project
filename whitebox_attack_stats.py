@@ -243,6 +243,8 @@ def main(args):
                 ref_embeddings =  ref_model.get_input_embeddings()(input_ids_from_text).squeeze().cuda()
 
             log_coeffs = torch.zeros(len(input_ids_from_text), embeddings.size(0))
+            print(log_coeffs)
+            print("Line 247")
             indices = torch.arange(log_coeffs.size(0)).long()
             log_coeffs[indices, torch.LongTensor(input_ids_from_text)] = args.initial_coeff
             log_coeffs = log_coeffs.cuda()
