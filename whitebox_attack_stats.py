@@ -245,7 +245,7 @@ def main(args):
             log_coeffs = torch.zeros(len(input_ids_from_text), embeddings.size(0))
             print(log_coeffs)
             print("Line 247")
-            indices = torch.arange(log_coeffs.size(0)).long()
+            indices = torch.arange(log_coeffs.size(0)).long().cuda()
             log_coeffs[indices, torch.LongTensor(input_ids_from_text)] = args.initial_coeff
             log_coeffs = log_coeffs.cuda()
             log_coeffs.requires_grad = True
