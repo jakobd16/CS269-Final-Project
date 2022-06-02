@@ -189,12 +189,6 @@ def main(args):
 
         print(totalSynList[0:6])
 
-        totalSyn_sequence = " ".join(totalSynList)
-        input_ids_from_text = inputs_text['input_ids']
-        with torch.no_grad():
-            embeddings= model.get_input_embeddings()(input_ids_from_text).squeeze().cuda()
-            ref_embeddings =  ref_model.get_input_embeddings()(input_ids_from_text).squeeze().cuda()
-
         print('LOGITS')
         print(clean_logit)
         
@@ -238,10 +232,15 @@ def main(args):
                 else:
                     orig_output = orig_output.mean(1)
             
+            totalSyn_sequence = " ".join(totalSynList)
             inputs_text = tokenizer.encode_plus(totalSyn_sequence, return_tensors='pt', 
                                add_special_tokens=True)
 
-        
+           
+            input_ids_from_text = inputs_text['input_ids']
+            embeddings= model.get_input_embeddings()(input_ids_from_text).squeeze().cuda()
+            ref_embeddings =  ref_model.get_input_embeddings()(input_ids_from_text).squeeze().cuda()
+
             log_coeffs = torch.zeros(len(input_ids_from_text), embeddings.size(0))
             print(log_coeffs)
             print("Line 247")
