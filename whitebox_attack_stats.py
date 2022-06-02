@@ -237,15 +237,15 @@ def main(args):
             inputs_text = tokenizer.encode_plus(totalSyn_sequence, return_tensors='pt', 
                                add_special_tokens=True)
 
-            input_ids_from_text = inputs_text['input_ids'].cuda()   
+            input_ids_from_text = inputs_text['input_ids'].cpu() 
             with torch.no_grad():
                 embeddings= model.get_input_embeddings()(input_ids_from_text).squeeze().cuda()
                 ref_embeddings =  ref_model.get_input_embeddings()(input_ids_from_text).squeeze().cuda()
 
-            log_coeffs = torch.zeros(len(input_ids_from_text), embeddings.size(0))
+            log_coeffs = torch.zeros(len(input_ids_from_text), embeddings.size(0)).cpu()
             print(log_coeffs)
             print("Line 247")
-            indices = torch.arange(log_coeffs.size(0)).long().cuda()
+            indices = torch.arange(log_coeffs.size(0)).long().cpu()
             log_coeffs[indices, torch.LongTensor(input_ids_from_text)] = args.initial_coeff
             log_coeffs = log_coeffs.cuda()
             log_coeffs.requires_grad = True
