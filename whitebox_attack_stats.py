@@ -4,6 +4,7 @@
 # This source code is licensed under the CC-by-NC license found in the
 # LICENSE file in the root directory of this source tree.
 #
+from weakref import ref
 from bert_score.utils import get_idf_dict
 from datasets import load_dataset
 from transformers import AutoTokenizer, AutoModelForSequenceClassification, AutoModelForCausalLM
@@ -95,9 +96,9 @@ def main(args):
         ref_model = load_gpt2_from_dict("%s/transformer_wikitext-103.pth" % args.gpt2_checkpoint_folder, output_hidden_states=True).cuda()
     else:
         ref_model = AutoModelForCausalLM.from_pretrained(args.model, output_hidden_states=True).cuda()
-    with torch.no_grad():
-        embeddings = model.get_input_embeddings()(torch.arange(0, tokenizer.vocab_size).long().cuda())
-        ref_embeddings = ref_model.get_input_embeddings()(torch.arange(0, tokenizer.vocab_size).long().cuda())
+    # with torch.no_grad():
+    #     embeddings = model.get_input_embeddings()(torch.arange(0, tokenizer.vocab_size).long().cuda())
+    #     ref_embeddings = ref_model.get_input_embeddings()(torch.arange(0, tokenizer.vocab_size).long().cuda())
         
     # encode dataset using tokenizer
     if args.dataset == "mnli":
@@ -188,6 +189,8 @@ def main(args):
 
         print(totalSynList[0:6])
 
+        totalSyn_sequence = " ".join(totalSynList)
+
         print('LOGITS')
         print(clean_logit)
         
@@ -230,6 +233,15 @@ def main(args):
                     orig_output = orig_output[:, -1]
                 else:
                     orig_output = orig_output.mean(1)
+            
+            inputs_text = tokenizer.encode_plus(text, return_tensors='pt', 
+                               add_special_tokens=True)
+
+            input_ids_from_text = inputs_text['input_ids_text'].cuda()   
+            with torch.no_grad():
+                embeddings= model.get_input_embeddings()(input_ids_from_text).squeeze().cuda()
+                ref_embeddings =  ref_model.get_input_embeddings()(input_ids_from_text).squeeze().cuda()
+
             log_coeffs = torch.zeros(len(input_ids), embeddings.size(0))
             indices = torch.arange(log_coeffs.size(0)).long()
             log_coeffs[indices, torch.LongTensor(input_ids)] = args.initial_coeff
