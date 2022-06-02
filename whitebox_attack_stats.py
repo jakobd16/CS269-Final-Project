@@ -234,10 +234,10 @@ def main(args):
                 else:
                     orig_output = orig_output.mean(1)
             
-            inputs_text = tokenizer.encode_plus(text, return_tensors='pt', 
+            inputs_text = tokenizer.encode_plus(totalSyn_sequence, return_tensors='pt', 
                                add_special_tokens=True)
 
-            input_ids_from_text = inputs_text['input_ids_text'].cuda()   
+            input_ids_from_text = inputs_text['input_ids'].cuda()   
             with torch.no_grad():
                 embeddings= model.get_input_embeddings()(input_ids_from_text).squeeze().cuda()
                 ref_embeddings =  ref_model.get_input_embeddings()(input_ids_from_text).squeeze().cuda()
