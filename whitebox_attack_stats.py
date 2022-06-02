@@ -239,8 +239,8 @@ def main(args):
 
             input_ids_from_text = inputs_text['input_ids']
             with torch.no_grad():
-                embeddings= model.get_input_embeddings()(input_ids_from_text).squeeze()
-                ref_embeddings =  ref_model.get_input_embeddings()(input_ids_from_text).squeeze()
+                embeddings= model.get_input_embeddings()(input_ids_from_text).squeeze().cuda()
+                ref_embeddings =  ref_model.get_input_embeddings()(input_ids_from_text).squeeze().cuda()
 
             log_coeffs = torch.zeros(len(input_ids_from_text), embeddings.size(0))
             print(log_coeffs)
