@@ -242,9 +242,9 @@ def main(args):
                 embeddings= model.get_input_embeddings()(input_ids_from_text).squeeze().cuda()
                 ref_embeddings =  ref_model.get_input_embeddings()(input_ids_from_text).squeeze().cuda()
 
-            log_coeffs = torch.zeros(len(input_ids), embeddings.size(0))
+            log_coeffs = torch.zeros(len(totalSyn_sequence), embeddings.size(0))
             indices = torch.arange(log_coeffs.size(0)).long()
-            log_coeffs[indices, torch.LongTensor(input_ids)] = args.initial_coeff
+            log_coeffs[indices, torch.LongTensor(totalSyn_sequence)] = args.initial_coeff
             log_coeffs = log_coeffs.cuda()
             log_coeffs.requires_grad = True
 
