@@ -254,7 +254,7 @@ def main(args):
             print(embeddings.size(1))
             print("len(input_ids_from_text)")
             print(len(input_ids_from_text))
-            log_coeffs = torch.zeros(len(input_ids_from_text), embeddings.size(1))
+            log_coeffs = torch.zeros(len(input_ids_from_text), embeddings.size(0))
             print(log_coeffs)
             print(log_coeffs.shape)
             print("Line 247")
