@@ -239,17 +239,38 @@ def main(args):
             input_ids_from_text = inputs_text['input_ids'].cuda()
             embeddings= model.get_input_embeddings()(input_ids_from_text).squeeze().cuda()
             ref_embeddings =  ref_model.get_input_embeddings()(input_ids_from_text).squeeze().cuda()
+            
 
+            print("Input IDS from text SHAPE")
+            print(len(input_ids_from_text))
+            input_ids_from_text = input_ids_from_text.flatten()
             print(input_ids_from_text.shape)
             print(embeddings.shape)
-            log_coeffs = torch.zeros(input_ids_from_text.size(1), embeddings.size(0))
+            print("input_ids_from_text.size(0)")
+            print(input_ids_from_text.size(0))
+            print("embeddings.size(0)")
+            print(embeddings.size(0))
+            print("embeddings.size(1)")
+            print(embeddings.size(1))
+            print("len(input_ids_from_text)")
+            print(len(input_ids_from_text))
+            log_coeffs = torch.zeros(len(input_ids_from_text), embeddings.size(1))
             print(log_coeffs)
             print(log_coeffs.shape)
             print("Line 247")
             indices = torch.arange(log_coeffs.size(0)).long()
-            log_coeffs[indices, torch.LongTensor(input_ids_from_text.cpu())] = args.initial_coeff
+
+            print("Indices : ", indices)
+            print(indices.shape)
+            print(args.initial_coeff)
+            print(torch.LongTensor(input_ids_from_text.cpu()).flatten().shape)
+            print("torch.LongTensor(input_ids_from_text.cpu()).flatten()")
+            print(torch.LongTensor(input_ids_from_text.cpu()).flatten())
+            log_coeffs[indices, torch.LongTensor(input_ids_from_text.cpu()).flatten()] = args.initial_coeff
             log_coeffs = log_coeffs.cuda()
             log_coeffs.requires_grad = True
+                
+
 
         optimizer = torch.optim.Adam([log_coeffs], lr=args.lr)
         start = time.time()
