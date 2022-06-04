@@ -4,7 +4,6 @@
 # This source code is licensed under the CC-by-NC license found in the
 # LICENSE file in the root directory of this source tree.
 #
-from weakref import ref
 from bert_score.utils import get_idf_dict
 from datasets import load_dataset
 from transformers import AutoTokenizer, AutoModelForSequenceClassification, AutoModelForCausalLM
@@ -20,9 +19,6 @@ transformers.logging.set_verbosity(transformers.logging.ERROR)
 import time 
 import torch
 import torch.nn.functional as F
-import nltk
-import string
-from nltk.corpus import wordnet
 
 from src.dataset import load_data
 from src.utils import bool_flag, get_output_file, print_args, load_gpt2_from_dict
@@ -64,10 +60,6 @@ def main(args):
     if os.path.exists(output_file):
         print('Skipping batch as it has already been completed.')
         exit()
-
-    # Download wordnet corpora
-    nltk.download('wordnet')
-    nltk.download('omw-1.4')
     
     # Load dataset
     dataset, num_labels = load_data(args)
@@ -96,9 +88,9 @@ def main(args):
         ref_model = load_gpt2_from_dict("%s/transformer_wikitext-103.pth" % args.gpt2_checkpoint_folder, output_hidden_states=True).cuda()
     else:
         ref_model = AutoModelForCausalLM.from_pretrained(args.model, output_hidden_states=True).cuda()
-    # with torch.no_grad():
-    #     embeddings = model.get_input_embeddings()(torch.arange(0, tokenizer.vocab_size).long().cuda())
-    #     ref_embeddings = ref_model.get_input_embeddings()(torch.arange(0, tokenizer.vocab_size).long().cuda())
+    with torch.no_grad():
+        embeddings = model.get_input_embeddings()(torch.arange(0, tokenizer.vocab_size).long().cuda())
+        ref_embeddings = ref_model.get_input_embeddings()(torch.arange(0, tokenizer.vocab_size).long().cuda())
         
     # encode dataset using tokenizer
     if args.dataset == "mnli":
@@ -132,72 +124,26 @@ def main(args):
     assert args.start_index < len(encoded_dataset[testset_key]), 'Starting index %d is larger than dataset length %d' % (args.start_index, len(encoded_dataset[testset_key]))
     end_index = min(args.start_index + args.num_samples, len(encoded_dataset[testset_key]))
     adv_losses, ref_losses, perp_losses, entropies = torch.zeros(end_index - args.start_index, args.num_iters), torch.zeros(end_index - args.start_index, args.num_iters), torch.zeros(end_index - args.start_index, args.num_iters), torch.zeros(end_index - args.start_index, args.num_iters)
-    labelCounts = None
-    correctlyClassified = None
-    advCorrectlyClassified = None
-    currentIters = None
-    if args.dataset == 'imdb':
-        labelCounts = [0,0]
-        correctlyClassified = 0
-        advCorrectlyClassified = 0
-        currentIters = 0
-    for idx in range(args.start_index, end_index): 
-        currentIters += 1
+    for idx in range(args.start_index, end_index):
         input_ids = encoded_dataset[testset_key]['input_ids'][idx]
+        print("Input IDs Length:", len(input_ids))
+        print()
+        print("Input IDs", input_ids)
+        print()
         if args.model == 'gpt2':
             token_type_ids = None
         else:
             token_type_ids = encoded_dataset[testset_key]['token_type_ids'][idx]
         label = label_perm(encoded_dataset[testset_key]['label'][idx])
-        if args.dataset == 'imdb': 
-            labelCounts[label] += 1
         clean_logit = model(input_ids=torch.LongTensor(input_ids).unsqueeze(0).cuda(),
                              token_type_ids=(None if token_type_ids is None else torch.LongTensor(token_type_ids).unsqueeze(0).cuda())).logits.data.cpu()
         print('LABEL')
         print(label)
         print('TEXT')
-
-        # here, we begin getting the synonyms of input sentence
-        text = tokenizer.decode(input_ids)
-        tokenText = text.split(' ')
-        print(tokenText)
-        lowerTokens = [targetToken.lower() for targetToken in tokenText]
-        punctTable = str.maketrans('', '', string.punctuation)
-        cleanedTokens = [loweredToken.translate(punctTable) for loweredToken in lowerTokens]
-        totalSynList = []
-        encounteredWords = []
-        for word in cleanedTokens:
-            if word == None:
-                continue
-            synonyms = wordnet.synsets(word)
-            synonymList = None
-            bigramAdjustedList = None
-            if synonyms:
-                synonymList = synonyms[0].lemma_names()
-                bigramAdjustedList = [synWord.replace('_', ' ') for synWord in synonymList]
-                if word not in encounteredWords:
-                    for bigram in bigramAdjustedList:
-                        totalSynList.append(bigram)
-                encounteredWords.append(word)
-
-        # all done, total list of all synonyms available at this point
-        # located in variable totalSynList in Python List form
-        # e.g. print(totalSynList) will show all synonyms
-
-        # ideas for improvement: add POS tagging to get right word sense
-        # and select sense with most synonyms
-
-        print(totalSynList[0:6])
-
+        print(tokenizer.decode(input_ids))
         print('LOGITS')
         print(clean_logit)
         
-        if args.dataset == 'imdb':
-            predictedLabel = 0
-            if clean_logit[0][1] > clean_logit[0][0]:
-                predictedLabel = 1
-            if label == predictedLabel:
-                correctlyClassified += 1
         forbidden = np.zeros(len(input_ids)).astype('bool')
         # set [CLS] and [SEP] tokens to forbidden
         forbidden[0] = True
@@ -231,56 +177,37 @@ def main(args):
                     orig_output = orig_output[:, -1]
                 else:
                     orig_output = orig_output.mean(1)
-            
-            totalSyn_sequence = " ".join(totalSynList)
-            inputs_text = tokenizer.encode_plus(totalSyn_sequence, return_tensors='pt', 
-                               add_special_tokens=True)
-
-            input_ids_from_text = inputs_text['input_ids'].cuda()
-            embeddings= model.get_input_embeddings()(input_ids_from_text).squeeze().cuda()
-            ref_embeddings =  ref_model.get_input_embeddings()(input_ids_from_text).squeeze().cuda()
-            
-
-            input_ids_from_text = input_ids_from_text.squeeze()
-            print("Input IDS from text SHAPE")
-            print(len(input_ids_from_text))
-            print(input_ids_from_text.shape)
+            print("Embeddings shape", embeddings.shape)
             print()
-            print("Embeddings Shape")
-            print(embeddings.shape)
-            print("input_ids_from_text.size(0)")
-            print(input_ids_from_text.size(0))
-            print("embeddings.size(0)")
-            print(embeddings.size(0))
-            print("embeddings.size(1)")
-            print(embeddings.size(1))
-            print("len(input_ids_from_text)")
-            print(len(input_ids_from_text))
             log_coeffs = torch.zeros(len(input_ids), embeddings.size(0))
-            print("Log Coeffs and Shape")
-            print(log_coeffs)
-            print(log_coeffs.shape)
-            print("Line 247")
+            print("Log_coeffs shape (zeros)", log_coeffs.shape)
+            print()
             indices = torch.arange(log_coeffs.size(0)).long()
-
-            print("Indices : ", indices)
-            print(indices.shape)
-            print("torch.LongTensor(input_ids_from_text.cpu()).flatten()")
-            # this may be a hacky way of getting the indices in the right spot,
-            # but may as well try
-            adjustedInputs = torch.LongTensor(input_ids) % embeddings.size(0)
-            log_coeffs[indices, adjustedInputs] = args.initial_coeff
+            print("Indices", indices)
+            print("Indices Shape", indices.shape)
+            print()
+            print("Long Tensor Shape", torch.LongTensor(input_ids).shape)
+            print()
+            log_coeffs[indices, torch.LongTensor(input_ids)] = args.initial_coeff
+            print("Log Coeffs after alteration", log_coeffs[0][1212])
+            print()
             log_coeffs = log_coeffs.cuda()
             log_coeffs.requires_grad = True
-                
-
 
         optimizer = torch.optim.Adam([log_coeffs], lr=args.lr)
         start = time.time()
         for i in range(args.num_iters):
             optimizer.zero_grad()
             coeffs = F.gumbel_softmax(log_coeffs.unsqueeze(0).repeat(args.batch_size, 1, 1), hard=False) # B x T x V
+            print("Coeffs shape", coeffs.shape)
+            print()
+            print("Coeffs", coeffs)
+            print()
             inputs_embeds = (coeffs @ embeddings[None, :, :]) # B x T x D
+            print("Input embeds shape", inputs_embeds.shape)
+            print()
+            print("Input embeds", inputs_embeds)
+            print()
             pred = model(inputs_embeds=inputs_embeds, token_type_ids=token_type_ids_batch).logits
             if args.adv_loss == 'ce':
                 adv_loss = -F.cross_entropy(pred, label * torch.ones(args.batch_size).long().cuda())
@@ -391,20 +318,8 @@ def main(args):
         print(clean_logit) # size 1 x C
         print('ADVERSARIAL LOGITS')
         print(adv_logit)   # size 1 x C
-
-        if args.dataset == 'imdb':
-            predictedLabel = 0
-            if adv_logit[0][1] > adv_logit[0][0]:
-                predictedLabel = 1
-            if label == predictedLabel:
-                advCorrectlyClassified += 1
-
-            with open('statistics.txt', 'w') as outputStatsFile:
-                outputStatsFile.write("Token Error Rate: %.4f (over %d tokens)\n" % (sum(token_errors) / len(token_errors), len(token_errors)))
-                outputStatsFile.write("Positive:Negative sample ratio of " + str(labelCounts[1]) + ":" + str(labelCounts[0]) +"\n")
-                outputStatsFile.write("Clean Accuracy: {acc:.4f}\n".format(acc=(correctlyClassified/currentIters)))
-                outputStatsFile.write("Adversarial Accuracy: {advAcc:.4f}\n".format(advAcc=(advCorrectlyClassified/currentIters)))
             
+    print("Token Error Rate: %.4f (over %d tokens)" % (sum(token_errors) / len(token_errors), len(token_errors)))
     torch.save({
         'adv_log_coeffs': adv_log_coeffs, 
         'adv_logits': torch.cat(adv_logits, 0), # size N x C
