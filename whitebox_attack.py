@@ -30,6 +30,21 @@ def wer(x, y):
 
     return jiwer.wer(x, y)
 
+
+# Universal Sentence Encoder
+class USE:
+    def __init__(self):
+        self.encoder = hub.load("https://tfhub.dev/google/universal-sentence-encoder/4")
+
+    def compute_sim(self, clean_texts, adv_texts):
+        clean_embeddings = self.encoder(clean_texts)
+        adv_embeddings = self.encoder(adv_texts)
+        cosine_sim = tf.reduce_mean(tf.reduce_sum(clean_embeddings * adv_embeddings, axis=1))
+
+        return float(cosine_sim.numpy())
+
+    
+
 @profile
 def bert_score(refs, cands, weights=None):
     refs_norm = refs / refs.norm(2, -1).unsqueeze(-1)
