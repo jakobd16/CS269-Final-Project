@@ -411,7 +411,12 @@ if __name__ == "__main__":
         help="print loss every x iterations")
     parser.add_argument("--gumbel_samples", default=100, type=int,
         help="number of gumbel samples; if 0, use argmax")
+    
+
 
     args = parser.parse_args()
+    if args.result_folder == 'none':
+        args.result_folder = args.checkpoint_folder
+
     print_args(args)
     main(args)
