@@ -278,6 +278,9 @@ def main(args):
                 label_adv = adv_logit.argmax()
                 
                 if adv_logit.argmax() != label or j == args.gumbel_samples - 1:
+                    attack_result = "success"
+                    print("Succeeded to perform adv attack on index {idx}!")
+
                     if args.dataset == 'mnli':
                         adv_texts['premise'].append(adv_premise)
                         adv_texts['hypothesis'].append(adv_hypothesis)
@@ -285,14 +288,15 @@ def main(args):
                     else:
                         adv_texts.append(adv_text)
                         print(adv_text)
-                    print(f'Succeeded to generate Adv attack on {idx}!')
-                    attack_result = 'success'
+                    
                     adv_logits.append(adv_logit)
                     break
 
                 else:
-                    print(f'Failed to generate Adv attack on {idx}!')
-                    attack_result = 'failed'
+                    attack_result ="failure"
+                    print("Failed to perform adv attack on index {idx}")
+                    break
+               
                     
                 
         # remove special tokens from adv_log_coeffs
