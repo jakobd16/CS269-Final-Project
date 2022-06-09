@@ -292,12 +292,7 @@ def main(args):
             adv_log_coeffs['hypothesis'].append(log_coeffs[premise_length:(log_coeffs.size(0)-offset), :].cpu())
         else:
             adv_log_coeffs.append(log_coeffs[offset:(log_coeffs.size(0)-offset), :].cpu()) # size T x V
-        
-        print('')
-        print('CLEAN LOGITS')
-        print(clean_logit) # size 1 x C
-        print('ADVERSARIAL LOGITS')
-        print(adv_logit)   # size 1 x C
+       
 
 
 
