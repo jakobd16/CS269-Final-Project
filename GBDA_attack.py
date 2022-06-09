@@ -11,9 +11,9 @@ import os
 import warnings
 transformers.logging.set_verbosity(transformers.logging.ERROR)
 import time 
-import pickle
 import torch
 import torch.nn.functional as F
+import pickle
 
 from src.dataset import load_data
 from src.utils import bool_flag, get_output_file, print_args, load_gpt2_from_dict
@@ -120,11 +120,9 @@ def main(args):
     end_index = min(args.start_index + args.num_samples, len(encoded_dataset[testset_key]))
     adv_losses, ref_losses, perp_losses, entropies = torch.zeros(end_index - args.start_index, args.num_iters), torch.zeros(end_index - args.start_index, args.num_iters), torch.zeros(end_index - args.start_index, args.num_iters), torch.zeros(end_index - args.start_index, args.num_iters)
     
-    attack_dict = {}
 
-    time_begin = time.time()
 
-    for idx in range(args.start_index, end_index):
+    def gen_adv(idx):
         input_ids = encoded_dataset[testset_key]['input_ids'][idx]
         if args.model == 'gpt2':
             token_type_ids = None
@@ -264,7 +262,9 @@ def main(args):
                     adv_premise = tokenizer.decode(adv_ids_premise)
                     adv_hypothesis = tokenizer.decode(adv_ids_hypothesis)
                     x = tokenizer(adv_premise, adv_hypothesis, max_length=256, truncation=True, return_tensors='pt')
-                    token_errors.append(wer(input_ids_premise + input_ids_hypothesis, x['input_ids'][0]))
+                    error_rate = wer(input_ids_premise + input_ids_hypothesis, x['input_ids'][0])
+                    token_errors.append(error_rate)
+                    
                 else:
                     adv_ids = adv_ids[offset:len(adv_ids)-offset].cpu().tolist()
                     adv_text = tokenizer.decode(adv_ids)
@@ -274,13 +274,8 @@ def main(args):
 
                 adv_logit = model(input_ids=x['input_ids'].cuda(), attention_mask=x['attention_mask'].cuda(),
                                   token_type_ids=(x['token_type_ids'].cuda() if 'token_type_ids' in x else None)).logits.data.cpu()
-                
-                label_adv = adv_logit.argmax()
-                
+                adv_label = adv_logit.argmax()
                 if adv_logit.argmax() != label or j == args.gumbel_samples - 1:
-                    attack_result = "success"
-                    print("Succeeded to perform adv attack on index {idx}!")
-
                     if args.dataset == 'mnli':
                         adv_texts['premise'].append(adv_premise)
                         adv_texts['hypothesis'].append(adv_hypothesis)
@@ -288,16 +283,8 @@ def main(args):
                     else:
                         adv_texts.append(adv_text)
                         print(adv_text)
-                    
                     adv_logits.append(adv_logit)
                     break
-
-                else:
-                    attack_result ="failure"
-                    print("Failed to perform adv attack on index {idx}")
-                    break
-               
-                    
                 
         # remove special tokens from adv_log_coeffs
         if args.dataset == 'mnli':
@@ -313,18 +300,42 @@ def main(args):
         print(adv_logit)   # size 1 x C
 
 
-        attack_dict[idx]=[attack_result, adv_text, clean_text, label_adv.item(), label, j, error_rate]
 
+        return adv_text, clean_text, adv_label, label, error_rate
+    
+    
+    
+    attack_dict = {}
+
+    time_begin = time.time()
+    for idx in range(args.start_index, args.start_index+args.num_samples):
+        sentence_adv, sentence_org, label_adv, label_org, error_rate = gen_adv(idx)
+        
+        if label_adv == label_org:
+            sentence_adv, sentence_org, label_adv, label_org, error_rate = gen_adv(idx)
+            if label_adv == label_org:
+                print(f'Failed to generate Adv attack on {idx}!')
+                attack_result = 'failed'
+            else:
+                print(f'Successed to generate Adv attack on {idx}!')
+                attack_result = 'success'
+        else:
+            print(f'Successed to generate Adv attack on {idx}!')
+            attack_result = 'success'
+        
+        attack_dict[idx]=[attack_result, sentence_adv, sentence_org, label_adv.item(), label_org,  error_rate]
 
     print(f'finished attack for {args.num_samples} samples in {time.time()-time_begin} seconds!')
-    print(time.time()-time_begin)       
-    print("Token Error Rate: %.4f (over %d tokens)" % (sum(token_errors) / len(token_errors), len(token_errors)))
-
-
+    print(time.time()-time_begin)
+        
     os.makedirs(args.result_folder, exist_ok=True)
     with open(f'{args.result_folder}/{args.start_index}_{args.start_index+args.num_samples}_{args.dataset}.pkl', 'wb') as f:
         pickle.dump(attack_dict, f)
 
+
+
+            
+    print("Token Error Rate: %.4f (over %d tokens)" % (sum(token_errors) / len(token_errors), len(token_errors)))
     torch.save({
         'adv_log_coeffs': adv_log_coeffs, 
         'adv_logits': torch.cat(adv_logits, 0), # size N x C
