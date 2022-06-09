@@ -154,7 +154,7 @@ def main(args):
         lowerTokens = [targetToken.lower() for targetToken in tokenText]
         punctTable = str.maketrans('', '', string.punctuation)
         cleanedTokens = [loweredToken.translate(punctTable) for loweredToken in lowerTokens]
-        totalSynList = []
+        totalSynList = tokenText
         encounteredWords = []
         for word in cleanedTokens:
             if word == None:
@@ -166,6 +166,7 @@ def main(args):
                 synonymList = synonyms[0].lemma_names()
                 bigramAdjustedList = [synWord.replace('_', ' ') for synWord in synonymList]
                 if word not in encounteredWords:
+                    totalSynList.append(word)
                     for bigram in bigramAdjustedList:
                         totalSynList.append(bigram)
                 encounteredWords.append(word)
