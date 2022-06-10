@@ -299,6 +299,7 @@ def main(args):
         if args.dataset == 'mnli':
             clean_premise = tokenizer.decode(input_ids_premise)
             clean_hypothesis = tokenizer.decode(input_ids_hypothesis)
+            clean_text = clean_premise
             clean_texts['premise'].append(clean_premise)
             clean_texts['hypothesis'].append(clean_hypothesis)
             print('%s %s' % (clean_premise, clean_hypothesis))
@@ -321,6 +322,7 @@ def main(args):
                         adv_ids_hypothesis = adv_ids[premise_length:len(adv_ids)-offset].cpu().tolist()
                     adv_premise = tokenizer.decode(adv_ids_premise)
                     adv_hypothesis = tokenizer.decode(adv_ids_hypothesis)
+                    adv_text = adv_premise
                     x = tokenizer(adv_premise, adv_hypothesis, max_length=256, truncation=True, return_tensors='pt')
                     error_rate = wer(input_ids_premise + input_ids_hypothesis, x['input_ids'][0])
                     token_errors.append(wer(input_ids_premise + input_ids_hypothesis, x['input_ids'][0]))
@@ -384,7 +386,7 @@ def main(args):
             pickle.dump(attack_dict, f)
 
     with open('timeStat.txt', 'w') as timeOutput:
-        timeOutput.write(f'Finished attack for {args.num_samples} samples in {time.time() - time_begin} seconds!/n')
+        timeOutput.write(f'Finished attack for {args.num_samples} samples in {time.time() - time_begin} seconds!\n')
         timeOutput.write(str(time.time() - time_begin))
 
 
