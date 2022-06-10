@@ -385,7 +385,7 @@ def main(args):
 
     with open('timeStat.txt', 'w') as timeOutput:
         timeOutput.write(f'Finished attack for {args.num_samples} samples in {time.time() - time_begin} seconds!/n')
-        timeOutput.write(time.time() - time_begin)
+        timeOutput.write(str(time.time() - time_begin))
 
 
 
